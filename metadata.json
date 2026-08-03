@@ -1,0 +1,6 @@
+{
+  "name": "Smart Farmer",
+  "description": "A high-fidelity B2B ecosystem bridging the agricultural gap, optimizing crop health with Gemini AI, and verifying produce quality.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
