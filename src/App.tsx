@@ -43,7 +43,8 @@ import {
   Globe,
   Sun,
   Moon,
-  Leaf
+  Leaf,
+  CloudRain
 } from "lucide-react";
 import { User, FarmerProfile, CropBatch, OfficerProfile, EscrowContract, AgriTicket, LogisticsPool, DoctorAppointment, LanguageMode, ThemeMode, CommunityPost, StoreOrder } from "./types";
 import { initialUsers, initialFarmerProfiles, initialCropBatches, initialOfficerProfiles, initialEscrowContracts, initialAgriTickets, initialLogisticsPools, initialDoctorAppointments, initialCommunityPosts } from "./data/mockData";
@@ -54,6 +55,7 @@ import { CommunityFeedSection } from "./components/CommunityFeedSection";
 import { AboutUsSection } from "./components/AboutUsSection";
 import { HarvestYieldProjection } from "./components/HarvestYieldProjection";
 import { RegionalClimateForecast } from "./components/RegionalClimateForecast";
+import farmerSowingRainImg from "./assets/images/farmer_sowing_rain_1786221231480.jpg";
 
 export default function App() {
   // --- Persistent Global Controls (Language & Theme) ---
@@ -71,9 +73,22 @@ export default function App() {
 
   // --- Persistent State ---
   const [users, setUsers] = useState<User[]>(() => {
-
     const saved = localStorage.getItem("sf_users");
-    return saved ? JSON.parse(saved) : initialUsers;
+    if (saved) {
+      try {
+        const parsed: User[] = JSON.parse(saved);
+        const missing = initialUsers.filter(iu => !parsed.some(u => u.user_id === iu.user_id));
+        if (missing.length > 0) {
+          const merged = [...parsed, ...missing];
+          localStorage.setItem("sf_users", JSON.stringify(merged));
+          return merged;
+        }
+        return parsed;
+      } catch {
+        return initialUsers;
+      }
+    }
+    return initialUsers;
   });
 
   const [farmerProfiles, setFarmerProfiles] = useState<Record<number, FarmerProfile>>(() => {
@@ -947,8 +962,11 @@ export default function App() {
     if (userToLogin.user_id === 101) expectedPin = "1234";
     else if (userToLogin.user_id === 201) expectedPin = "2345";
     else if (userToLogin.user_id === 301) expectedPin = "3456";
-    else if (userToLogin.user_id === 401) expectedPin = "4567";
-    else expectedPin = "0000"; // fallback for alternative users
+    else if (userToLogin.user_id === 401 || userToLogin.role === "AGENT" || userToLogin.name.toLowerCase().includes("khorshed")) expectedPin = "4567";
+    else {
+      const persona = featuredPeople.find(p => p.id === userToLogin.user_id);
+      expectedPin = persona ? persona.pin : "0000";
+    }
 
     if (pinEntered === expectedPin) {
       setIsLoginLoading(true);
@@ -963,7 +981,7 @@ export default function App() {
         setSelectedLoginUserId(null);
         addLog(`System Access Granted: '${userToLogin.name}' (${userToLogin.role}) authenticated successfully.`);
         triggerNotificationToast(`✓ Access Granted: Welcome back, ${userToLogin.name}!`);
-      }, 800);
+      }, 400);
     } else {
       setLoginError("Invalid 4-digit security PIN. Please try again.");
       triggerNotificationToast("✗ Access Denied: Incorrect credentials.");
@@ -983,7 +1001,16 @@ export default function App() {
         
         // Auto-submit if 4 digits are typed!
         if (nextPin.length === 4) {
-          const matchedUser = users.find(u => u.user_id === selectedLoginUserId);
+          const persona = featuredPeople.find(p => p.id === selectedLoginUserId);
+          const matchedUser = users.find(u => u.user_id === selectedLoginUserId) || (persona ? {
+            user_id: persona.id,
+            name: persona.name,
+            role: persona.role,
+            phone_number: "+8801999888777",
+            upazila_district: persona.district,
+            joined_date: "2024-01-10T10:00:00Z"
+          } : null);
+
           if (matchedUser) {
             handleLoginSubmit(matchedUser, nextPin);
           }
@@ -997,11 +1024,17 @@ export default function App() {
     const activeFeaturedObj = featuredPeople.find(p => p.id === selectedLoginUserId);
 
     return (
-      <div id="login-portal-container" className="min-h-screen bg-[#0F160F] text-white flex flex-col justify-between p-6 relative overflow-hidden font-sans selection:bg-[#F97316]/30">
+      <div
+        id="login-portal-container"
+        className="min-h-screen text-white flex flex-col justify-between p-6 relative overflow-hidden font-sans selection:bg-[#F97316]/30 bg-cover bg-center bg-no-repeat transition-all duration-500"
+        style={{
+          backgroundImage: `linear-gradient(to bottom, rgba(10, 20, 10, 0.75), rgba(10, 20, 10, 0.88)), url(${farmerSowingRainImg})`,
+        }}
+      >
         
         {/* Animated ambient background spots */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-950/20 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#F97316]/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-950/30 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#F97316]/10 rounded-full blur-[120px] pointer-events-none" />
 
         {/* Global Toast Alert */}
         {showNotificationAlert && (
@@ -1014,7 +1047,7 @@ export default function App() {
         )}
 
         {/* HEADER */}
-        <header className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/5 pb-6">
+        <header className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/10 pb-6 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-[#F97316] rounded-2xl text-white shadow-md">
               <Sprout className="w-6 h-6" />
@@ -1023,12 +1056,13 @@ export default function App() {
               <h1 className="text-lg font-extrabold tracking-tight uppercase flex items-center gap-2 font-sans text-white">
                 SmartFarmer OS <span className="text-[9px] bg-white/10 text-[#F97316] font-extrabold px-2 py-0.5 rounded-full border border-white/10 uppercase font-mono tracking-wider">v4.2.0</span>
               </h1>
-              <p className="text-xs text-gray-400">Agricultural Market Exchange & Diagnostics Terminal</p>
+              <p className="text-xs text-emerald-200/80 font-medium">Agricultural Market Exchange & Diagnostics Terminal</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400 bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse animate-duration-1000"></span>
-            <span>Federated Network Security Active</span>
+
+          <div className="flex items-center gap-2 text-xs text-sky-200 bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-sm">
+            <CloudRain className="w-4 h-4 text-sky-400 animate-bounce" />
+            <span className="font-extrabold">Rainy Season Sowing • Live Climate Portal</span>
           </div>
         </header>
 
@@ -1038,20 +1072,31 @@ export default function App() {
           {selectedLoginUserId === null ? (
             // VIEW 1: DISPLAY 4 PERSONA CARDS
             <div className="w-full space-y-8 animate-fadeIn">
-              <div className="text-center space-y-3 max-w-2xl mx-auto">
-                <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl"> E-Governance & Market Exchange Portal</h2>
-                <p className="text-sm text-gray-400 leading-relaxed font-sans">
-                  Choose one of the 4 key actors below to log into your workstation session. Enter their designated security passcode to authenticate and retrieve local files.
+              <div className="text-center space-y-3 max-w-2xl mx-auto bg-black/30 backdrop-blur-md p-6 rounded-3xl border border-white/10">
+                <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 px-3.5 py-1 rounded-full text-xs font-extrabold border border-emerald-500/30 mb-1">
+                  <CloudRain className="w-3.5 h-3.5 text-sky-300" />
+                  <span>Monsoon Harvest & Seed Sowing Season</span>
+                </div>
+                <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">E-Governance & Market Exchange Portal</h2>
+                <p className="text-xs sm:text-sm text-gray-200 leading-relaxed font-sans font-medium">
+                  Select one of the 4 key agricultural personnel below to log into your workstation session. Enter their designated passcode to authenticate.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {featuredPeople.map(person => {
-                  const dbUser = users.find(u => u.user_id === person.id) || { name: person.name, role: person.role, upazila_district: person.district, phone_number: "" };
+                  const dbUser = users.find(u => u.user_id === person.id) || {
+                    user_id: person.id,
+                    name: person.name,
+                    role: person.role,
+                    upazila_district: person.district,
+                    phone_number: "+8801999888777",
+                    joined_date: "2024-01-10T10:00:00Z"
+                  };
                   return (
                     <div
                       key={person.id}
-                      className="bg-white/[0.02] border-2 border-white/5 rounded-3xl p-6 transition-all duration-300 flex flex-col justify-between gap-6 hover:bg-white/[0.04] hover:scale-[1.02] relative group overflow-hidden"
+                      className="bg-black/40 backdrop-blur-xl border-2 border-white/15 rounded-3xl p-6 transition-all duration-300 flex flex-col justify-between gap-6 hover:bg-black/60 hover:border-emerald-400/50 hover:scale-[1.02] relative group overflow-hidden shadow-2xl"
                     >
                       {/* Decorative subtle gradient card glow */}
                       <div className={`absolute inset-0 bg-gradient-to-br ${person.bgGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
@@ -1311,7 +1356,7 @@ export default function App() {
             ))}
 
             {/* Officer */}
-            {users.filter(u => u.role === "AGRI_OFFICER").slice(0, 1).map(o => (
+            {users.filter(u => u.role === "AGRI_OFFICER" || u.role === "DOCTOR").slice(0, 1).map(o => (
               <button
                 key={o.user_id}
                 id={`role-btn-officer-${o.user_id}`}
@@ -1322,7 +1367,23 @@ export default function App() {
                     : "text-white/80 hover:text-white hover:bg-white/10"
                 }`}
               >
-                <span>🔬</span> Officer: Nusrat
+                <span>🔬</span> Doctor/Officer: {o.name.split(" ")[0]}
+              </button>
+            ))}
+
+            {/* Agent */}
+            {users.filter(u => u.role === "AGENT" || u.user_id === 401).slice(0, 1).map(a => (
+              <button
+                key={a.user_id}
+                id={`role-btn-agent-${a.user_id}`}
+                onClick={() => { setActiveUser(a); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer ${
+                  activeUser.user_id === a.user_id
+                    ? "bg-purple-600 text-white shadow-sm font-bold"
+                    : "text-white/80 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <span>📦</span> Agent: Khorshed
               </button>
             ))}
           </div>
@@ -1409,6 +1470,20 @@ export default function App() {
             >
               <Info className="w-4 h-4 text-emerald-500" />
               <span>{getTranslation(lang, 'navAbout')}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsLoggedIn(false);
+                setSelectedLoginUserId(null);
+                setEnteredPin("");
+                addLog("Opened Front Display Login Portal.");
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black text-[#1A2A1A] hover:bg-amber-500/20 hover:text-amber-900 border border-amber-500/30 bg-amber-50/80 cursor-pointer transition-all ml-auto md:ml-0"
+              title="Open Front Display Login Page"
+            >
+              <LogOut className="w-4 h-4 text-amber-600" />
+              <span>{lang === "BN" ? "লগইন পোর্টাল" : "Login Portal"}</span>
             </button>
           </div>
 
