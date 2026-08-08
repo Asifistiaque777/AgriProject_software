@@ -108,3 +108,58 @@ export interface DoctorAppointment {
   notification_sent: boolean;
   created_at: string;
 }
+
+export type LanguageMode = 'EN' | 'BN';
+export type ThemeMode = 'LIGHT' | 'DARK' | 'EARTH';
+
+export interface CommunityComment {
+  comment_id: number;
+  author_id: number;
+  author_name: string;
+  author_role: string;
+  text: string;
+  created_at: string;
+}
+
+export interface CommunityPost {
+  post_id: number;
+  author_id: number;
+  author_name: string;
+  author_role: 'FARMER' | 'AGENT' | 'DOCTOR' | 'ADMIN' | 'BUYER' | 'AGRI_OFFICER';
+  author_district: string;
+  category: 'PEST_ALERT' | 'FARMING_TIP' | 'MARKET_PRICE' | 'HARVEST_NEWS' | 'QUESTION';
+  title: string;
+  content: string;
+  imageUrl?: string;
+  crop_tag?: string;
+  upvotes: number;
+  upvoted_user_ids: number[];
+  comments: CommunityComment[];
+  created_at: string;
+  is_verified_officer?: boolean;
+}
+
+export interface CartItem {
+  batch: CropBatch;
+  order_quantity_kg: number;
+}
+
+export interface StoreOrder {
+  order_id: number;
+  buyer_name: string;
+  buyer_phone: string;
+  shipping_address: string;
+  payment_method: 'bKash' | 'Nagad' | 'Escrow' | 'Cash on Delivery';
+  items: {
+    batch_id: number;
+    crop_name: string;
+    farmer_name: string;
+    quantity_kg: number;
+    unit_price: number;
+    subtotal: number;
+  }[];
+  total_amount: number;
+  created_at: string;
+  status: 'PROCESSING' | 'CONFIRMED' | 'SHIPPED';
+}
+

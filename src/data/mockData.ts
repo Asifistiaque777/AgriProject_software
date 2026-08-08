@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { User, FarmerProfile, CropBatch, OfficerProfile, EscrowContract, AgriTicket, LogisticsPool, DoctorAppointment } from '../types';
+import { User, FarmerProfile, CropBatch, OfficerProfile, EscrowContract, AgriTicket, LogisticsPool, DoctorAppointment, CommunityPost } from '../types';
 
 export const initialUsers: User[] = [
   // Farmers
@@ -316,3 +316,91 @@ export const initialDoctorAppointments: DoctorAppointment[] = [
     created_at: "2026-06-22T09:45:00Z"
   }
 ];
+
+export const initialCommunityPosts: CommunityPost[] = [
+  {
+    post_id: 9001,
+    author_id: 301,
+    author_name: "Dr. Rafiqul Rahman",
+    author_role: "DOCTOR",
+    author_district: "Gazipur",
+    category: "PEST_ALERT",
+    title: "🚨 URGENT: High humidity alert for Late Blight in Potato crops across Gazipur & Bogura!",
+    content: "Due to the persistent cloud cover and humidity over 85%, potato fields are at extreme risk of Phytophthora infestans (Late Blight). Farmers are advised to spray Mancozeb or Copper Oxychloride immediately at early signs of leaf browning.",
+    imageUrl: "https://images.unsplash.com/photo-1592417817098-8f3d69931b67?auto=format&fit=crop&w=800&q=80",
+    crop_tag: "Potato",
+    upvotes: 24,
+    upvoted_user_ids: [101, 102, 302],
+    is_verified_officer: true,
+    comments: [
+      {
+        comment_id: 1,
+        author_id: 101,
+        author_name: "Abul Hasan Miah",
+        author_role: "FARMER",
+        text: "Thank you Dr. Rafiqul! I spotted minor spots this morning and sprayed Mancozeb right away.",
+        created_at: "2 hours ago"
+      },
+      {
+        comment_id: 2,
+        author_id: 302,
+        author_name: "Dr. Nusrat Jahan",
+        author_role: "AGRI_OFFICER",
+        text: "Confirmed from DAE Kaliakair station. Sub-assistant agricultural officers are on field standby.",
+        created_at: "1 hour ago"
+      }
+    ],
+    created_at: "3 hours ago"
+  },
+  {
+    post_id: 9002,
+    author_id: 101,
+    author_name: "Abul Hasan Miah",
+    author_role: "FARMER",
+    author_district: "Kaliakair, Gazipur",
+    category: "HARVEST_NEWS",
+    title: "🌾 Bumper harvest of Grade-A BRRI Dhan 28 Rice ready for bulk supply!",
+    content: "Alhamdulillah! My 4.5 acre farm in Kaliakair has harvested 2,500 kg of organic, eco-certified BRRI Dhan 28 Paddy. Government DAE officers certified Grade A quality. Looking for buyer partnerships or escrow bids!",
+    imageUrl: "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=800&q=80",
+    crop_tag: "Rice",
+    upvotes: 18,
+    upvoted_user_ids: [201, 401],
+    comments: [
+      {
+        comment_id: 1,
+        author_id: 201,
+        author_name: "Sabbir Ahmed (Agora)",
+        author_role: "BUYER",
+        text: "Excellent quality Hasan Shaheb! I will place an Escrow bid for 1,000 kg directly through the E-Commerce Store.",
+        created_at: "45 mins ago"
+      }
+    ],
+    created_at: "5 hours ago"
+  },
+  {
+    post_id: 9003,
+    author_id: 201,
+    author_name: "Sabbir Ahmed (Agora)",
+    author_role: "BUYER",
+    author_district: "Gulshan, Dhaka",
+    category: "MARKET_PRICE",
+    title: "💰 Agora Superstores seeking 5,000 kg Grade-A Mustard Seed & Tomatoes",
+    content: "Attention regional farmers & agents: Agora retail outlets are expanding organic vegetable shelves across Dhaka. We offer premium price rates (৳38/kg Tomato, ৳85/kg Mustard) with 100% upfront Smart Escrow deposits.",
+    imageUrl: "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?auto=format&fit=crop&w=800&q=80",
+    crop_tag: "Tomato",
+    upvotes: 31,
+    upvoted_user_ids: [101, 102, 103, 401],
+    comments: [
+      {
+        comment_id: 1,
+        author_id: 401,
+        author_name: "Agent Khorshed Alam",
+        author_role: "AGENT",
+        text: "We have consolidated 12 smallholder tomato producers in Bogura with cold-truck transport ready!",
+        created_at: "30 mins ago"
+      }
+    ],
+    created_at: "1 day ago"
+  }
+];
+

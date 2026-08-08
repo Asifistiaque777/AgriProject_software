@@ -37,15 +37,39 @@ import {
   Trash2,
   Edit,
   LogOut,
-  Layers
+  Layers,
+  ShoppingBag,
+  MessageSquare,
+  Globe,
+  Sun,
+  Moon,
+  Leaf
 } from "lucide-react";
-import { User, FarmerProfile, CropBatch, OfficerProfile, EscrowContract, AgriTicket, LogisticsPool, DoctorAppointment } from "./types";
-import { initialUsers, initialFarmerProfiles, initialCropBatches, initialOfficerProfiles, initialEscrowContracts, initialAgriTickets, initialLogisticsPools, initialDoctorAppointments } from "./data/mockData";
+import { User, FarmerProfile, CropBatch, OfficerProfile, EscrowContract, AgriTicket, LogisticsPool, DoctorAppointment, LanguageMode, ThemeMode, CommunityPost, StoreOrder } from "./types";
+import { initialUsers, initialFarmerProfiles, initialCropBatches, initialOfficerProfiles, initialEscrowContracts, initialAgriTickets, initialLogisticsPools, initialDoctorAppointments, initialCommunityPosts } from "./data/mockData";
 import { cropSamples, CropSample } from "./data/cropSamples";
+import { getTranslation } from "./utils/translations";
+import { PublicECommerceStore } from "./components/PublicECommerceStore";
+import { CommunityFeedSection } from "./components/CommunityFeedSection";
+import { AboutUsSection } from "./components/AboutUsSection";
 
 export default function App() {
+  // --- Persistent Global Controls (Language & Theme) ---
+  const [lang, setLang] = useState<LanguageMode>(() => {
+    const saved = localStorage.getItem("sf_lang");
+    return (saved as LanguageMode) || "EN";
+  });
+
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem("sf_theme");
+    return (saved as ThemeMode) || "LIGHT";
+  });
+
+  const [activeMainTab, setActiveMainTab] = useState<"DASHBOARD" | "STORE" | "COMMUNITY" | "ABOUT_US">("DASHBOARD");
+
   // --- Persistent State ---
   const [users, setUsers] = useState<User[]>(() => {
+
     const saved = localStorage.getItem("sf_users");
     return saved ? JSON.parse(saved) : initialUsers;
   });
@@ -85,10 +109,21 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialDoctorAppointments;
   });
 
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(() => {
+    const saved = localStorage.getItem("sf_community_posts");
+    return saved ? JSON.parse(saved) : initialCommunityPosts;
+  });
+
+  const [storeOrders, setStoreOrders] = useState<StoreOrder[]>(() => {
+    const saved = localStorage.getItem("sf_store_orders");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const saved = localStorage.getItem("sf_is_logged_in");
     return saved === "true";
   });
+
 
   const [activeDistrict, setActiveDistrict] = useState(() => {
     const saved = localStorage.getItem("sf_agent_active_district");
@@ -187,11 +222,99 @@ export default function App() {
     localStorage.setItem("sf_agri_tickets", JSON.stringify(agriTickets));
     localStorage.setItem("sf_logistics_pools", JSON.stringify(logisticsPools));
     localStorage.setItem("sf_doctor_appointments", JSON.stringify(doctorAppointments));
+    localStorage.setItem("sf_community_posts", JSON.stringify(communityPosts));
+    localStorage.setItem("sf_store_orders", JSON.stringify(storeOrders));
+    localStorage.setItem("sf_lang", lang);
+    localStorage.setItem("sf_theme", theme);
     localStorage.setItem("sf_is_logged_in", String(isLoggedIn));
     localStorage.setItem("sf_agent_active_district", activeDistrict);
     localStorage.setItem("sf_system_logs", JSON.stringify(systemLogs));
     localStorage.setItem("sf_active_user", JSON.stringify(activeUser));
-  }, [users, farmerProfiles, cropBatches, officerProfiles, escrowContracts, agriTickets, logisticsPools, doctorAppointments, isLoggedIn, activeDistrict, systemLogs, activeUser]);
+  }, [users, farmerProfiles, cropBatches, officerProfiles, escrowContracts, agriTickets, logisticsPools, doctorAppointments, communityPosts, storeOrders, lang, theme, isLoggedIn, activeDistrict, systemLogs, activeUser]);
+
+  // --- E-Commerce Order Handler ---
+  const handlePlaceStoreOrder = (newOrder: StoreOrder) => {
+    setStoreOrders(prev => [newOrder, ...prev]);
+
+    // Update crop batch quantities
+    newOrder.items.forEach(item => {
+      setCropBatches(prevBatches => prevBatches.map(batch => {
+        if (batch.batch_id === item.batch_id) {
+          const remaining = Math.max(0, batch.quantity_kg - item.quantity_kg);
+          return {
+            ...batch,
+            quantity_kg: remaining,
+            status: remaining === 0 ? "RESERVED" : "AVAILABLE"
+          };
+        }
+        return batch;
+      }));
+
+      // Create an escrow contract entry if payment method is Escrow
+      if (newOrder.payment_method === "Escrow") {
+        const matchingBatch = cropBatches.find(b => b.batch_id === item.batch_id);
+        const newEscrowContract: EscrowContract = {
+          bid_id: Date.now() + Math.floor(Math.random() * 1000),
+          batch_id: item.batch_id,
+          crop_name: item.crop_name,
+          buyer_id: activeUser.user_id,
+          buyer_name: newOrder.buyer_name,
+          farmer_id: matchingBatch?.farmer_id || 101,
+          farmer_name: item.farmer_name,
+          quantity_kg: item.quantity_kg,
+          amount_total: item.subtotal,
+          status: "SECURED_IN_ESCROW",
+          delivery_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+          quality_check_passed: true
+        };
+        setEscrowContracts(prevEscrow => [newEscrowContract, ...prevEscrow]);
+      }
+    });
+  };
+
+  // --- Community Handlers ---
+  const handleAddCommunityPost = (newPost: CommunityPost) => {
+    setCommunityPosts(prev => [newPost, ...prev]);
+    addLog(`Community Post published by '${newPost.author_name}': ${newPost.title}`);
+  };
+
+  const handleUpvoteCommunityPost = (postId: number) => {
+    setCommunityPosts(prev => prev.map(post => {
+      if (post.post_id === postId) {
+        const hasUpvoted = post.upvoted_user_ids.includes(activeUser.user_id);
+        const newUpvoteIds = hasUpvoted
+          ? post.upvoted_user_ids.filter(id => id !== activeUser.user_id)
+          : [...post.upvoted_user_ids, activeUser.user_id];
+        return {
+          ...post,
+          upvotes: hasUpvoted ? Math.max(0, post.upvotes - 1) : post.upvotes + 1,
+          upvoted_user_ids: newUpvoteIds
+        };
+      }
+      return post;
+    }));
+  };
+
+  const handleAddCommentCommunityPost = (postId: number, commentText: string) => {
+    setCommunityPosts(prev => prev.map(post => {
+      if (post.post_id === postId) {
+        const newComment = {
+          comment_id: Date.now(),
+          author_id: activeUser.user_id,
+          author_name: activeUser.name,
+          author_role: activeUser.role,
+          text: commentText,
+          created_at: "Just now"
+        };
+        return {
+          ...post,
+          comments: [...post.comments, newComment]
+        };
+      }
+      return post;
+    }));
+  };
+
 
   // --- Helpers ---
   const getFarmerProfile = (id: number): FarmerProfile | undefined => farmerProfiles[id];
@@ -209,7 +332,12 @@ export default function App() {
       setAgriTickets(initialAgriTickets);
       setLogisticsPools(initialLogisticsPools);
       setDoctorAppointments(initialDoctorAppointments);
+      setCommunityPosts(initialCommunityPosts);
+      setStoreOrders([]);
+      setLang("EN");
+      setTheme("LIGHT");
       setIsLoggedIn(false);
+
       setActiveDistrict("Gazipur");
       setSystemLogs([
         `[${new Date().toLocaleTimeString()}] System booted successfully.`,
@@ -1123,7 +1251,11 @@ export default function App() {
   }
 
   return (
-    <div id="smart-farmer-root" className="min-h-screen bg-[#F4F1EA] text-[#1A2A1A] font-sans selection:bg-[#2D4F1E]/20 selection:text-[#1A2A1A] pb-12">
+    <div id="smart-farmer-root" className={`min-h-screen font-sans selection:bg-[#2D4F1E]/20 transition-colors duration-300 pb-12 ${
+      theme === "DARK" ? "bg-[#0F160F] text-gray-100 selection:text-white" :
+      theme === "EARTH" ? "bg-[#1A2B19] text-[#E8F0E8] selection:text-[#E8F0E8]" :
+      "bg-[#F4F1EA] text-[#1A2A1A] selection:text-[#1A2A1A]"
+    }`}>
       
       {/* --- TOP BANNER / ECOSYSTEM SIMULATOR CONSOLE --- */}
       <section id="simulator-console" className="sticky top-2 z-45 mx-4 my-2 bg-[#2D4F1E] text-white p-5 rounded-3xl shadow-md border border-white/10">
@@ -1137,12 +1269,12 @@ export default function App() {
               <h1 className="text-sm font-bold tracking-tight text-white uppercase flex items-center gap-1.5 font-sans">
                 SmartFarmer OS <span className="text-[10px] bg-white/10 text-[#F97316] font-extrabold px-2 py-0.5 rounded-full border border-white/25 uppercase font-mono tracking-wider">v4.2.0</span>
               </h1>
-              <p className="text-[11px] text-white/80">Integrated Agricultural Logistics & Cultivation Ecosystem</p>
+              <p className="text-[11px] text-white/80">{getTranslation(lang, 'tagline')}</p>
             </div>
           </div>
 
           <div id="role-selector-bar" className="flex flex-wrap items-center bg-white/5 p-1.5 rounded-2xl border border-white/10 gap-1 font-sans">
-            <span className="text-[11px] font-bold text-white/60 px-2 uppercase tracking-wide">Acting As:</span>
+            <span className="text-[11px] font-bold text-white/60 px-2 uppercase tracking-wide">{getTranslation(lang, 'actingAs')}</span>
             
             {/* Farmers */}
             {users.filter(u => u.role === "FARMER").map(f => (
@@ -1193,53 +1325,184 @@ export default function App() {
             ))}
           </div>
 
-          <button
-            id="reset-simulation-btn"
-            onClick={handleResetSimulation}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white/10 text-white/90 rounded-xl hover:bg-red-500/20 hover:text-red-200 border border-white/10 font-mono transition-all duration-200 cursor-pointer"
-            title="Wipe LocalStorage and reset profiles"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Reset
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              id="reset-simulation-btn"
+              onClick={handleResetSimulation}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white/10 text-white/90 rounded-xl hover:bg-red-500/20 hover:text-red-200 border border-white/10 font-mono transition-all duration-200 cursor-pointer"
+              title="Wipe LocalStorage and reset profiles"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> {getTranslation(lang, 'resetSim')}
+            </button>
 
-          <button
-            id="logout-btn"
-            onClick={() => {
-              setIsLoggedIn(false);
-              localStorage.setItem("sf_is_logged_in", "false");
-              setEnteredPin("");
-              setSelectedLoginUserId(null);
-              addLog(`Personnel session terminated. Returning to decentralized login portal.`);
-              triggerNotificationToast("🔒 Securely logged out.");
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-600/10 text-red-200 rounded-xl hover:bg-red-600 hover:text-white border border-red-500/20 font-sans font-bold transition-all duration-200 cursor-pointer"
-            title="Terminate secure session"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Sign Out
-          </button>
+            <button
+              id="logout-btn"
+              onClick={() => {
+                setIsLoggedIn(false);
+                localStorage.setItem("sf_is_logged_in", "false");
+                setEnteredPin("");
+                setSelectedLoginUserId(null);
+                addLog(`Personnel session terminated. Returning to decentralized login portal.`);
+                triggerNotificationToast("🔒 Securely logged out.");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-600/10 text-red-200 rounded-xl hover:bg-red-600 hover:text-white border border-red-500/20 font-sans font-bold transition-all duration-200 cursor-pointer"
+              title="Terminate secure session"
+            >
+              <LogOut className="w-3.5 h-3.5" /> {getTranslation(lang, 'signOut')}
+            </button>
+          </div>
 
         </div>
       </section>
 
+      {/* --- PUBLIC NAVIGATION TABS & LANGUAGE / THEME CONTROL BAR --- */}
+      <nav id="main-public-navbar" className="max-w-7xl mx-auto px-4 my-4">
+        <div className="bg-white/90 backdrop-blur-md rounded-3xl p-2.5 shadow-sm border border-[#1A2A1A]/10 flex flex-col md:flex-row items-center justify-between gap-3">
+          
+          {/* Main View Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+            <button
+              onClick={() => setActiveMainTab("DASHBOARD")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black cursor-pointer transition-all ${
+                activeMainTab === "DASHBOARD"
+                  ? "bg-[#2D4F1E] text-white shadow"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Sprout className="w-4 h-4" />
+              <span>{getTranslation(lang, 'navDashboard')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMainTab("STORE")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black cursor-pointer transition-all ${
+                activeMainTab === "STORE"
+                  ? "bg-[#2D4F1E] text-white shadow"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 text-amber-500" />
+              <span>{getTranslation(lang, 'navStore')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMainTab("COMMUNITY")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black cursor-pointer transition-all ${
+                activeMainTab === "COMMUNITY"
+                  ? "bg-[#2D4F1E] text-white shadow"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 text-sky-500" />
+              <span>{getTranslation(lang, 'navCommunity')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMainTab("ABOUT_US")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black cursor-pointer transition-all ${
+                activeMainTab === "ABOUT_US"
+                  ? "bg-[#2D4F1E] text-white shadow"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Info className="w-4 h-4 text-emerald-500" />
+              <span>{getTranslation(lang, 'navAbout')}</span>
+            </button>
+          </div>
+
+          {/* Right Side: Language & Theme Switcher */}
+          <div className="flex items-center gap-2 shrink-0">
+            
+            {/* Language Switcher Button */}
+            <button
+              onClick={() => {
+                const nextLang = lang === "EN" ? "BN" : "EN";
+                setLang(nextLang);
+                triggerNotificationToast(nextLang === "BN" ? "🌐 ভাষা পরিবর্তন: বাংলা" : "🌐 Language: English");
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-2xl text-xs font-extrabold cursor-pointer transition-all"
+              title="Toggle Bangla / English Language"
+            >
+              <Globe className="w-4 h-4 text-emerald-700" />
+              <span>{lang === "EN" ? "বাংলা (BN)" : "English (EN)"}</span>
+            </button>
+
+            {/* Theme Switcher Button */}
+            <button
+              onClick={() => {
+                const nextTheme = theme === "LIGHT" ? "DARK" : theme === "DARK" ? "EARTH" : "LIGHT";
+                setTheme(nextTheme);
+                triggerNotificationToast(`🎨 Theme changed to ${nextTheme}`);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 rounded-2xl text-xs font-extrabold cursor-pointer transition-all"
+              title="Toggle App Visual Theme"
+            >
+              {theme === "LIGHT" && <Sun className="w-4 h-4 text-amber-500" />}
+              {theme === "DARK" && <Moon className="w-4 h-4 text-indigo-400" />}
+              {theme === "EARTH" && <Leaf className="w-4 h-4 text-emerald-600" />}
+              <span className="capitalize">{theme} Theme</span>
+            </button>
+
+          </div>
+
+        </div>
+      </nav>
+
       {/* --- SIMULATED ROLE CONTEXT NOTIFIER --- */}
-      <div className="bg-[#2D4F1E]/5 border-y border-[#2D4F1E]/10 py-3 px-4 text-center">
-        <p className="text-xs text-[#1A2A1A] max-w-4xl mx-auto flex items-center justify-center gap-2">
-          <Info className="w-4 h-4 text-[#2D4F1E] shrink-0" />
-          <span>
-            You are viewing the dashboard as <strong className="text-white bg-[#2D4F1E] px-2.5 py-0.5 rounded-full font-sans font-semibold text-[11px] uppercase tracking-wide">{activeUser.name}</strong> ({activeUser.role} role).
-            Use the top console bar to switch anytime to test the farmer's leaf AI pathology, place escrow deposits as a Buyer, or certify crop grades as an Agri-Officer.
-          </span>
-        </p>
-      </div>
+      {activeMainTab === "DASHBOARD" && (
+        <div className="bg-[#2D4F1E]/5 border-y border-[#2D4F1E]/10 py-3 px-4 text-center">
+          <p className="text-xs text-[#1A2A1A] max-w-4xl mx-auto flex items-center justify-center gap-2">
+            <Info className="w-4 h-4 text-[#2D4F1E] shrink-0" />
+            <span>
+              You are viewing the dashboard as <strong className="text-white bg-[#2D4F1E] px-2.5 py-0.5 rounded-full font-sans font-semibold text-[11px] uppercase tracking-wide">{activeUser.name}</strong> ({activeUser.role} role).
+              Use the top console bar to switch anytime to test the farmer's leaf AI pathology, place escrow deposits as a Buyer, or certify crop grades as an Agri-Officer.
+            </span>
+          </p>
+        </div>
+      )}
 
       {/* --- MAIN PAGE CONTENT WORKSPACE --- */}
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
         
+        {/* VIEW 1: PUBLIC E-COMMERCE STORE */}
+        {activeMainTab === "STORE" && (
+          <PublicECommerceStore
+            cropBatches={cropBatches}
+            activeUser={activeUser}
+            lang={lang}
+            onPlaceOrder={handlePlaceStoreOrder}
+            triggerNotificationToast={triggerNotificationToast}
+            addLog={addLog}
+          />
+        )}
+
+        {/* VIEW 2: COMMUNITY FEED */}
+        {activeMainTab === "COMMUNITY" && (
+          <CommunityFeedSection
+            posts={communityPosts}
+            activeUser={activeUser}
+            lang={lang}
+            onAddPost={handleAddCommunityPost}
+            onUpvotePost={handleUpvoteCommunityPost}
+            onAddComment={handleAddCommentCommunityPost}
+            triggerNotificationToast={triggerNotificationToast}
+          />
+        )}
+
+        {/* VIEW 3: ABOUT US */}
+        {activeMainTab === "ABOUT_US" && (
+          <AboutUsSection lang={lang} />
+        )}
+
+        {/* VIEW 4: ROLE WORKSTATION DASHBOARDS */}
+        {activeMainTab === "DASHBOARD" && (
+          <>
         {/* ========================================================
             🌾 VIEW: FARMER DASHBOARD
             ======================================================== */}
         {activeUser.role === "FARMER" && (
           <div id="farmer-workspace" className="space-y-8 animate-fadeIn font-sans">
+
             
             {/* -- Farmer Portfolio Profile Header -- */}
             <div className="bg-white rounded-3xl border-2 border-[#1A2A1A]/5 p-6 md:p-8 relative overflow-hidden shadow-sm">
@@ -2745,6 +3008,8 @@ export default function App() {
             </div>
 
           </div>
+        )}
+          </>
         )}
 
       </main>
