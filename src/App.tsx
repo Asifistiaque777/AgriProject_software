@@ -52,6 +52,8 @@ import { getTranslation } from "./utils/translations";
 import { PublicECommerceStore } from "./components/PublicECommerceStore";
 import { CommunityFeedSection } from "./components/CommunityFeedSection";
 import { AboutUsSection } from "./components/AboutUsSection";
+import { HarvestYieldProjection } from "./components/HarvestYieldProjection";
+import { RegionalClimateForecast } from "./components/RegionalClimateForecast";
 
 export default function App() {
   // --- Persistent Global Controls (Language & Theme) ---
@@ -1501,11 +1503,10 @@ export default function App() {
             🌾 VIEW: FARMER DASHBOARD
             ======================================================== */}
         {activeUser.role === "FARMER" && (
-          <div id="farmer-workspace" className="space-y-8 animate-fadeIn font-sans">
+          <div id="farmer-workspace" className="space-y-8 font-sans">
 
-            
             {/* -- Farmer Portfolio Profile Header -- */}
-            <div className="bg-white rounded-3xl border-2 border-[#1A2A1A]/5 p-6 md:p-8 relative overflow-hidden shadow-sm">
+            <div className="bg-white rounded-3xl border-2 border-[#1A2A1A]/5 p-6 md:p-8 relative overflow-hidden shadow-sm animate-fade-in-up">
               <div className="absolute top-0 right-0 w-80 h-80 bg-[#2D4F1E]/5 rounded-full blur-3xl -z-10" />
               <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-[#F97316]/5 rounded-full blur-3xl -z-10" />
               
@@ -1593,8 +1594,30 @@ export default function App() {
               </div>
             </div>
 
+            {/* -- SEARCH GROUNDED REGIONAL CLIMATE FORECAST & HARVEST WARNINGS -- */}
+            <div className="animate-fade-in-up animation-delay-100">
+              <RegionalClimateForecast
+                farmerProfile={getFarmerProfile(activeUser.user_id)}
+                farmerName={activeUser.name}
+                lang={lang}
+                triggerNotificationToast={triggerNotificationToast}
+                addLog={addLog}
+              />
+            </div>
+
+            {/* -- HISTORICAL YIELD ANALYSIS & SEASONAL HARVEST PROJECTION ENGINE -- */}
+            <div className="animate-fade-in-up animation-delay-200">
+              <HarvestYieldProjection
+                farmerProfile={getFarmerProfile(activeUser.user_id)}
+                farmerName={activeUser.name}
+                lang={lang}
+                triggerNotificationToast={triggerNotificationToast}
+                addLog={addLog}
+              />
+            </div>
+
             {/* -- BENTO GRID: DIAGNOSTIC CELL & CROP INVENTORY FORM -- */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in-up animation-delay-300">
               
               {/* CELL 1: CROP LEAF PATHOLOGY LAB (7 cols) */}
               <div id="ai-clinic-section" className="lg:col-span-7 bg-white rounded-3xl border-2 border-[#1A2A1A]/5 p-6 md:p-8 space-y-6 shadow-sm text-[#1A2A1A]">
