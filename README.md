@@ -2,7 +2,7 @@
 
 > An intelligent, data-driven web application designed to help farmers optimize sowing schedules, track harvests, and get real-time climate forecasting.
 
----
+
 
 ## 🛠️ Tech Stack & Tools
 
@@ -13,7 +13,7 @@
 ![Express.js](https://img.shields.io/badge/express.js-%23404D59.svg?style=for-the-badge&logo=express&logoColor=%2361DAFB)
 ![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white)
 
----
+
 
 ## ✨ Features
 
@@ -22,7 +22,7 @@
 * ⛅ **Climate Forecasting:** Integrated forecasting engine for localized climate updates.
 * 🔄 **User Data Sync:** Real-time synchronization of farm metadata and user preferences.
 
----
+
 
 ## 📁 Project Structure
 
